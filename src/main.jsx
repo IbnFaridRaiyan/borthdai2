@@ -7,6 +7,14 @@ const readSessionScore = () => {
   const scoreCookie = document.cookie.split("; ").find((cookie) => cookie.startsWith("hasib-birthday-score="));
   return Number(scoreCookie?.split("=")[1]) || 0;
 };
+const gameLevels = [
+  { bricks: 10, columns: 5, speed: 2.8 },
+  { bricks: 20, columns: 5, speed: 3.3 },
+  { bricks: 30, columns: 6, speed: 3.9 },
+  { bricks: 40, columns: 8, speed: 4.5 },
+  { bricks: 50, columns: 10, speed: 5.2 },
+  { bricks: 60, columns: 10, speed: 6 },
+];
 
 const memories = [
   {
@@ -167,17 +175,18 @@ function BreakoutGame() {
     const paddleHeight = 144;
     const paddleY = 458;
     const ballRadius = 8;
-    const ballSpeed = [3.1, 3.8, 4.5][level - 1];
-    const columns = level === 1 ? 5 : 6;
-    const rows = level === 1 ? 2 : level === 2 ? 4 : 5;
-    const brickGap = 9;
-    const brickWidth = (width - 88 - brickGap * (columns - 1)) / columns;
+    const currentLevel = gameLevels[level - 1];
+    const ballSpeed = currentLevel.speed;
+    const columns = currentLevel.columns;
+    const rows = currentLevel.bricks / columns;
+    const brickGap = 8;
+    const brickWidth = (width - 72 - brickGap * (columns - 1)) / columns;
     const bricks = [];
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         bricks.push({
-          x: 44 + column * (brickWidth + brickGap),
+          x: 36 + column * (brickWidth + brickGap),
           y: 55 + row * 34,
           width: brickWidth,
           height: 23,
@@ -245,48 +254,58 @@ function BreakoutGame() {
 
       if (status !== "playing") return;
 
-      ball.x += ball.dx;
-      ball.y += ball.dy;
-      if (ball.x - ballRadius <= 0 || ball.x + ballRadius >= width) ball.dx *= -1;
-      if (ball.y - ballRadius <= 0) ball.dy = Math.abs(ball.dy);
+      const movementScale = 1040 / Math.max(1, canvas.getBoundingClientRect().width);
+      const steps = Math.ceil((Math.hypot(ball.dx, ball.dy) * movementScale) / 5);
+      let hitBrick = false;
 
-      const boundedPaddleX = Math.max(10, Math.min(width - paddleWidth - 10, paddleX.current));
-      if (
-        ball.dy > 0 &&
-        ball.y + ballRadius >= paddleY - 3 &&
-        ball.y + ballRadius <= paddleY + 13 &&
-        ball.x >= boundedPaddleX - ballRadius &&
-        ball.x <= boundedPaddleX + paddleWidth + ballRadius
-      ) {
-        const hitPosition = (ball.x - (boundedPaddleX + paddleWidth / 2)) / (paddleWidth / 2);
-        ball.dx = hitPosition * ballSpeed * 0.9;
-        ball.dy = -Math.sqrt(Math.max(1, ballSpeed ** 2 - ball.dx ** 2));
-      }
+      for (let step = 0; step < steps; step += 1) {
+        ball.x += (ball.dx * movementScale) / steps;
+        ball.y += (ball.dy * movementScale) / steps;
+        if (ball.x - ballRadius <= 0 || ball.x + ballRadius >= width) ball.dx *= -1;
+        if (ball.y - ballRadius <= 0) ball.dy = Math.abs(ball.dy);
 
-      for (const brick of bricks) {
+        const boundedPaddleX = Math.max(10, Math.min(width - paddleWidth - 10, paddleX.current));
         if (
-          brick.alive &&
-          ball.x + ballRadius > brick.x &&
-          ball.x - ballRadius < brick.x + brick.width &&
-          ball.y + ballRadius > brick.y &&
-          ball.y - ballRadius < brick.y + brick.height
+          ball.dy > 0 &&
+          ball.y + ballRadius >= paddleY - 3 &&
+          ball.y + ballRadius <= paddleY + 13 &&
+          ball.x >= boundedPaddleX - ballRadius &&
+          ball.x <= boundedPaddleX + paddleWidth + ballRadius
         ) {
-          brick.alive = false;
-          ball.dy *= -1;
-          hitCountRef.current += 1;
-          scoreRef.current += 10;
-          setScore(scoreRef.current);
-          setLastScore(scoreRef.current);
-          document.cookie = `hasib-birthday-score=${scoreRef.current}; Path=/; SameSite=Lax`;
-          if (hitCountRef.current === rows * columns) {
-            if (level === 3) setStatus("won");
-            else setLevel((currentLevel) => currentLevel + 1);
+          const hitPosition = (ball.x - (boundedPaddleX + paddleWidth / 2)) / (paddleWidth / 2);
+          ball.dx = hitPosition * ballSpeed * 0.9;
+          ball.dy = -Math.sqrt(Math.max(1, ballSpeed ** 2 - ball.dx ** 2));
+        }
+
+        for (const brick of bricks) {
+          if (
+            brick.alive &&
+            ball.x + ballRadius > brick.x &&
+            ball.x - ballRadius < brick.x + brick.width &&
+            ball.y + ballRadius > brick.y &&
+            ball.y - ballRadius < brick.y + brick.height
+          ) {
+            brick.alive = false;
+            ball.dy *= -1;
+            hitCountRef.current += 1;
+            scoreRef.current += 10;
+            setScore(scoreRef.current);
+            setLastScore(scoreRef.current);
+            document.cookie = `hasib-birthday-score=${scoreRef.current}; Path=/; SameSite=Lax`;
+            if (hitCountRef.current === currentLevel.bricks) {
+              if (level === gameLevels.length) setStatus("won");
+              else setLevel((previousLevel) => previousLevel + 1);
+            }
+            hitBrick = true;
+            break;
           }
-          break;
+        }
+        if (hitBrick) break;
+        if (ball.y - ballRadius > height) {
+          setStatus("lost");
+          return;
         }
       }
-
-      if (ball.y - ballRadius > height) setStatus("lost");
       animationFrame = requestAnimationFrame(draw);
     };
 
@@ -327,12 +346,12 @@ function BreakoutGame() {
       <div className="game-heading reveal">
         <span className="eyebrow">THE BIRTHDAY BONUS ROUND</span>
         <h2>Bro vs. the bricks.</h2>
-        <p>Three levels. One legendary paddle. You know what to do.</p>
+        <p>Six levels. One legendary paddle. You know what to do.</p>
       </div>
       <div className="game-shell reveal">
         <div className="game-topbar">
           <div className="game-stat"><span>SCORE</span><strong>{score}</strong></div>
-          <div className="game-level">LEVEL <strong>{level}</strong><span className="level-dots"><i className={level >= 1 ? "active" : ""} /><i className={level >= 2 ? "active" : ""} /><i className={level >= 3 ? "active" : ""} /></span></div>
+          <div className="game-level">LEVEL <strong>{level}</strong><span className="level-dots">{gameLevels.map((gameLevel, index) => <i key={gameLevel.bricks} className={level > index ? "active" : ""} />)}</span></div>
           <div className="game-stat game-best"><span>LAST SCORE</span><strong>{lastScore}</strong></div>
         </div>
         <div className="canvas-wrap">
@@ -352,7 +371,7 @@ function BreakoutGame() {
               <h3>{status === "won" ? "Absolute legend!" : status === "lost" ? "One more round?" : "Ready, bro?"}</h3>
               <p>
                 {status === "won"
-                  ? "All 60 bricks. That's a birthday-worthy score."
+                  ? "All 210 bricks. That's a birthday-worthy score."
                   : status === "lost"
                     ? "The bricks got lucky. Your best is saved for this visit."
                     : "Use ← → or slide your finger to move the paddle."}
@@ -364,7 +383,7 @@ function BreakoutGame() {
           )}
         </div>
         <div className="game-footnote">
-          <span>← → KEYBOARD</span><span>TOUCH & DRAG</span><span>LEVEL 3 = FAST</span>
+          <span>← → KEYBOARD</span><span>TOUCH & DRAG</span><span>LEVEL 6 = FASTEST</span>
         </div>
       </div>
     </section>
