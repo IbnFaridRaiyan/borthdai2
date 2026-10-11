@@ -451,6 +451,7 @@ function App() {
         <p>
           Once again happy birthday, have a wonderful life ahead, many many prayers for you and your family, nvm the photoblast, could do with the best of your photos but.. Just didnt feel like it soo.. :v pardon (jk, sometimes good photos doesnt make the best memories, here's some deep sh*t for you now crack it). thanks a lot for being a part of my family. See you soon bro :D
         </p>
+        <p className="footer-note">knew you would say you have predicted the surprrise xD</p>
         <div className="footer-signoff"><span>BIRTHDAY WISHES, A LITTLE CHAOS & MANY MEMORIES</span><span>HAPPY BIRTHDAY, HASIB BRO <b>♡</b></span></div>
         <div className="footer-credit">© Raiyan Ibn Farid 2026</div>
       </footer>
